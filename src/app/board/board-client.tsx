@@ -1,19 +1,55 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import {
+  Bell,
+  MagnifyingGlass,
+  Buildings,
+  Phone,
+  EnvelopeSimple,
+  UsersFour,
+  Sparkle,
+  Trophy,
+  ChartLineUp,
+  X,
+} from "@phosphor-icons/react";
+import Sidebar from "@/components/sidebar";
+import StatCard from "@/components/stat-card";
 import type { Lead, LeadNote, LeadActivity, Profile, LeadStatus, Paginated } from "@/lib/types";
 
 const STATUSES: LeadStatus[] = ["new", "contacted", "qualified", "won", "lost"];
 
-const STATUS_COLORS: Record<LeadStatus, string> = {
-  new: "bg-blue-100 text-blue-800",
-  contacted: "bg-purple-100 text-purple-800",
-  qualified: "bg-amber-100 text-amber-800",
-  won: "bg-green-100 text-green-800",
-  lost: "bg-neutral-200 text-neutral-600",
+const STATUS_STYLES: Record<LeadStatus, string> = {
+  new: "bg-blue-50 text-blue-600",
+  contacted: "bg-violet-50 text-violet-600",
+  qualified: "bg-amber-50 text-amber-600",
+  won: "bg-emerald-50 text-emerald-600",
+  lost: "bg-neutral-100 text-neutral-500",
 };
+
+const AVATAR_PALETTE = [
+  "bg-blue-50 text-blue-600",
+  "bg-violet-50 text-violet-600",
+  "bg-amber-50 text-amber-600",
+  "bg-emerald-50 text-emerald-600",
+  "bg-rose-50 text-rose-600",
+  "bg-cyan-50 text-cyan-600",
+];
+
+function avatarStyle(seed: string) {
+  let hash = 0;
+  for (const ch of seed) hash = (hash + ch.charCodeAt(0)) % AVATAR_PALETTE.length;
+  return AVATAR_PALETTE[hash];
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 export default function BoardClient({
   currentProfile,
@@ -26,18 +62,20 @@ export default function BoardClient({
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [assignedFilter, setAssignedFilter] = useState<string | "all">("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const router = useRouter();
+  const [stats, setStats] = useState({ total: 0, won: 0, unassigned: 0 });
 
-  const pageSize = 20;
+  const pageSize = 9;
   const profileById = Object.fromEntries(profiles.map((p) => [p.id, p]));
 
   const load = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (statusFilter !== "all") params.set("status", statusFilter);
+    if (assignedFilter !== "all") params.set("assigned_to", assignedFilter);
     if (search) params.set("search", search);
     const res = await fetch(`/api/leads?${params}`);
     if (res.ok) {
@@ -46,11 +84,24 @@ export default function BoardClient({
       setTotal(data.total);
     }
     setLoading(false);
-  }, [page, statusFilter, search]);
+  }, [page, statusFilter, assignedFilter, search]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    fetch(`/api/leads?pageSize=100`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: Paginated<Lead> | null) => {
+        if (!data) return;
+        setStats({
+          total: data.total,
+          won: data.data.filter((l) => l.status === "won").length,
+          unassigned: data.data.filter((l) => !l.assigned_to).length,
+        });
+      });
+  }, []);
 
   async function updateStatus(id: string, status: LeadStatus) {
     const res = await fetch(`/api/leads/${id}`, {
@@ -76,163 +127,212 @@ export default function BoardClient({
     }
   }
 
-  async function signOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.replace("/login");
-    router.refresh();
-  }
-
   return (
-    <main className="max-w-6xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold">Docket</h1>
-          <p className="text-sm text-neutral-500">
-            {currentProfile.name} · {currentProfile.role}
-          </p>
+    <div className="min-h-screen p-5 flex gap-5 max-w-[1400px] mx-auto">
+      <Sidebar currentProfile={currentProfile} />
+
+      <main className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Welcome, {currentProfile.name.split(" ")[0]}!
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Here&apos;s what&apos;s happening with your pipeline today.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+              <Bell size={18} />
+            </button>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${avatarStyle(currentProfile.id)}`}>
+              {initials(currentProfile.name)}
+            </div>
+          </div>
         </div>
-        <button onClick={signOut} className="text-sm text-neutral-500 hover:text-neutral-900">
-          Sign out
-        </button>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <button
-          onClick={() => {
-            setStatusFilter("all");
-            setPage(1);
-          }}
-          className={`text-xs px-3 py-1 rounded-full ${
-            statusFilter === "all" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600"
-          }`}
-        >
-          All ({total})
-        </button>
-        {STATUSES.map((s) => (
-          <button
-            key={s}
-            onClick={() => {
-              setStatusFilter(s);
-              setPage(1);
-            }}
-            className={`text-xs px-3 py-1 rounded-full capitalize ${
-              statusFilter === s ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-        <input
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Search name, email, company…"
-          className="ml-auto text-sm border border-neutral-300 rounded-md px-3 py-1.5 w-64"
-        />
-      </div>
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <StatCard label="Total leads" value={stats.total} icon={UsersFour} />
+          <StatCard label="Won" value={stats.won} icon={Trophy} />
+          <StatCard label="Unassigned" value={stats.unassigned} icon={Sparkle} />
+        </div>
 
-      <div className="border border-neutral-200 rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 border-b border-neutral-200 text-left text-xs text-neutral-500">
-            <tr>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">Company</th>
-              <th className="px-4 py-2">Email</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Assigned to</th>
-              <th className="px-4 py-2">Created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {loading && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-neutral-400">
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!loading && leads.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-neutral-400">
-                  No leads found
-                </td>
-              </tr>
-            )}
-            {leads.map((lead) => (
-              <tr
-                key={lead.id}
-                onClick={() => setSelectedId(lead.id)}
-                className="hover:bg-neutral-50 cursor-pointer"
-              >
-                <td className="px-4 py-2 font-medium">{lead.name}</td>
-                <td className="px-4 py-2 text-neutral-600">{lead.company || "—"}</td>
-                <td className="px-4 py-2 text-neutral-600">{lead.email}</td>
-                <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
-                  <select
-                    value={lead.status}
-                    onChange={(e) => updateStatus(lead.id, e.target.value as LeadStatus)}
-                    className={`text-xs px-2 py-1 rounded-full border-0 ${STATUS_COLORS[lead.status]}`}
+        <div className="bg-card rounded-2xl border border-border p-4 mb-6 flex flex-wrap items-center gap-4">
+          <div>
+            <label className="block text-[11px] text-muted-foreground uppercase tracking-wide mb-1">
+              Status
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as LeadStatus | "all");
+                setPage(1);
+              }}
+              className="text-sm bg-transparent font-medium focus:outline-none"
+            >
+              <option value="all">All statuses</option>
+              {STATUSES.map((s) => (
+                <option key={s} value={s} className="capitalize">
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-px h-8 bg-border" />
+          {currentProfile.role === "admin" && (
+            <>
+              <div>
+                <label className="block text-[11px] text-muted-foreground uppercase tracking-wide mb-1">
+                  Assigned to
+                </label>
+                <select
+                  value={assignedFilter}
+                  onChange={(e) => {
+                    setAssignedFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="text-sm bg-transparent font-medium focus:outline-none"
+                >
+                  <option value="all">Everyone</option>
+                  {profiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-px h-8 bg-border" />
+            </>
+          )}
+          <div className="flex-1 flex items-center gap-2 min-w-[200px]">
+            <MagnifyingGlass size={16} className="text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search name, email, company…"
+              className="flex-1 text-sm bg-transparent focus:outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold">Leads</h2>
+          <span className="text-xs text-muted-foreground bg-card-muted px-2.5 py-1 rounded-full">
+            {total}
+          </span>
+        </div>
+
+        {loading && <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>}
+        {!loading && leads.length === 0 && (
+          <p className="text-sm text-muted-foreground py-8 text-center">No leads found.</p>
+        )}
+
+        <div className="grid grid-cols-3 gap-4">
+          {leads.map((lead) => (
+            <div
+              key={lead.id}
+              className="bg-card rounded-2xl border border-border p-5 flex flex-col gap-4"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-11 h-11 rounded-full flex items-center justify-center font-semibold text-sm shrink-0 ${avatarStyle(lead.id)}`}
                   >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
+                    {initials(lead.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">{lead.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {lead.company || "No company"}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`text-[11px] font-medium px-2.5 py-1 rounded-full capitalize shrink-0 ${STATUS_STYLES[lead.status]}`}
+                >
+                  {lead.status}
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5 truncate">
+                  <EnvelopeSimple size={13} />
+                  <span className="truncate">{lead.email}</span>
+                </div>
+                {lead.phone && (
+                  <div className="flex items-center gap-1.5">
+                    <Phone size={13} />
+                    {lead.phone}
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <Buildings size={13} />
+                  {lead.assigned_to ? profileById[lead.assigned_to]?.name ?? "—" : "Unassigned"}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-border">
+                <select
+                  value={lead.status}
+                  onChange={(e) => updateStatus(lead.id, e.target.value as LeadStatus)}
+                  className="text-xs border border-border rounded-lg px-2 py-1.5 flex-1 bg-card-muted"
+                >
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s} className="capitalize">
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                {currentProfile.role === "admin" && (
+                  <select
+                    value={lead.assigned_to ?? ""}
+                    onChange={(e) => assign(lead.id, e.target.value || null)}
+                    className="text-xs border border-border rounded-lg px-2 py-1.5 flex-1 bg-card-muted"
+                  >
+                    <option value="">Unassigned</option>
+                    {profiles.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
                       </option>
                     ))}
                   </select>
-                </td>
-                <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
-                  {currentProfile.role === "admin" ? (
-                    <select
-                      value={lead.assigned_to ?? ""}
-                      onChange={(e) => assign(lead.id, e.target.value || null)}
-                      className="text-xs border border-neutral-300 rounded px-2 py-1"
-                    >
-                      <option value="">Unassigned</option>
-                      {profiles.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="text-neutral-600">
-                      {lead.assigned_to ? profileById[lead.assigned_to]?.name ?? "—" : "Unassigned"}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-neutral-400 text-xs">
-                  {new Date(lead.created_at).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex items-center justify-between mt-4 text-sm text-neutral-500">
-        <span>
-          Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
-        </span>
-        <div className="flex gap-2">
-          <button
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1 border border-neutral-300 rounded disabled:opacity-40"
-          >
-            Prev
-          </button>
-          <button
-            disabled={page * pageSize >= total}
-            onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1 border border-neutral-300 rounded disabled:opacity-40"
-          >
-            Next
-          </button>
+                )}
+                <button
+                  onClick={() => setSelectedId(lead.id)}
+                  className="bg-accent text-accent-foreground text-xs font-medium px-3.5 py-1.5 rounded-lg whitespace-nowrap"
+                >
+                  View
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+
+        <div className="flex items-center justify-between mt-6 text-sm text-muted-foreground">
+          <span>
+            Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
+          </span>
+          <div className="flex gap-2">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="px-3 py-1.5 border border-border rounded-lg disabled:opacity-40 bg-card"
+            >
+              Prev
+            </button>
+            <button
+              disabled={page * pageSize >= total}
+              onClick={() => setPage((p) => p + 1)}
+              className="px-3 py-1.5 border border-border rounded-lg disabled:opacity-40 bg-card"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </main>
 
       {selectedId && (
         <LeadDetail
@@ -242,7 +342,7 @@ export default function BoardClient({
           profileById={profileById}
         />
       )}
-    </main>
+    </div>
   );
 }
 
@@ -295,37 +395,57 @@ function LeadDetail({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex justify-end z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/30 flex justify-end z-50" onClick={onClose}>
       <div
-        className="bg-white w-full max-w-md h-full overflow-y-auto p-6"
+        className="bg-card w-full max-w-md h-full overflow-y-auto p-6 rounded-l-3xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-lg font-semibold">{lead?.name}</h2>
-            <p className="text-sm text-neutral-500">{lead?.email}</p>
+        <div className="flex justify-between items-start mb-6">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold ${avatarStyle(lead?.id ?? "x")}`}
+            >
+              {lead ? initials(lead.name) : ""}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">{lead?.name}</h2>
+              <p className="text-sm text-muted-foreground">{lead?.email}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900">
-            ✕
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground w-8 h-8 flex items-center justify-center rounded-full hover:bg-card-muted"
+          >
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-1 text-sm text-neutral-600 mb-6">
-          <p>Company: {lead?.company || "—"}</p>
-          <p>Phone: {lead?.phone || "—"}</p>
-          <p>
-            Assigned to:{" "}
-            {lead?.assigned_to ? profileById[lead.assigned_to]?.name ?? "—" : "Unassigned"}
+        <div className="bg-card-muted rounded-2xl p-4 space-y-2 text-sm mb-6">
+          <p className="flex justify-between">
+            <span className="text-muted-foreground">Company</span>
+            <span className="font-medium">{lead?.company || "—"}</span>
+          </p>
+          <p className="flex justify-between">
+            <span className="text-muted-foreground">Phone</span>
+            <span className="font-medium">{lead?.phone || "—"}</span>
+          </p>
+          <p className="flex justify-between">
+            <span className="text-muted-foreground">Assigned to</span>
+            <span className="font-medium">
+              {lead?.assigned_to ? profileById[lead.assigned_to]?.name ?? "—" : "Unassigned"}
+            </span>
           </p>
         </div>
 
-        <h3 className="text-sm font-semibold mb-2">Notes</h3>
+        <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+          <ChartLineUp size={15} /> Notes
+        </h3>
         <div className="space-y-2 mb-4">
-          {notes.length === 0 && <p className="text-sm text-neutral-400">No notes yet.</p>}
+          {notes.length === 0 && <p className="text-sm text-muted-foreground">No notes yet.</p>}
           {notes.map((n) => (
-            <div key={n.id} className="bg-neutral-50 rounded-md p-3 text-sm">
+            <div key={n.id} className="bg-card-muted rounded-xl p-3 text-sm">
               <p>{n.body}</p>
-              <p className="text-xs text-neutral-400 mt-1">
+              <p className="text-xs text-muted-foreground mt-1.5">
                 {profileById[n.author_id]?.name ?? "—"} · {new Date(n.created_at).toLocaleString()}
               </p>
             </div>
@@ -336,22 +456,22 @@ function LeadDetail({
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Add a note…"
-            className="flex-1 border border-neutral-300 rounded-md px-3 py-2 text-sm"
+            className="flex-1 border border-border rounded-xl px-3 py-2 text-sm bg-card-muted focus:outline-none"
           />
           <button
             onClick={addNote}
             disabled={saving}
-            className="bg-neutral-900 text-white rounded-md px-4 py-2 text-sm disabled:opacity-50"
+            className="bg-accent text-accent-foreground rounded-xl px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             Add
           </button>
         </div>
 
-        <h3 className="text-sm font-semibold mb-2">Activity</h3>
+        <h3 className="text-sm font-bold mb-3">Activity</h3>
         <div className="space-y-2">
-          {activity.length === 0 && <p className="text-sm text-neutral-400">No activity yet.</p>}
+          {activity.length === 0 && <p className="text-sm text-muted-foreground">No activity yet.</p>}
           {activity.map((a) => (
-            <div key={a.id} className="text-xs text-neutral-500 flex justify-between">
+            <div key={a.id} className="text-xs text-muted-foreground flex justify-between">
               <span>
                 {profileById[a.actor_id]?.name ?? "—"} — {a.action.replace(/_/g, " ")}
                 {a.action === "status_changed" && typeof a.meta.status === "string"
