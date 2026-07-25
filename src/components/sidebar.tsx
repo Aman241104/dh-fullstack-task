@@ -16,7 +16,7 @@ export default function Sidebar({ currentProfile }: { currentProfile: Profile })
   }
 
   return (
-    <aside className="w-64 shrink-0 bg-card rounded-3xl p-5 flex flex-col h-[calc(100vh-2.5rem)] sticky top-5">
+    <aside className="hidden lg:flex w-64 shrink-0 bg-card rounded-3xl p-5 flex-col h-[calc(100vh-2.5rem)] sticky top-5">
       <div className="flex items-center gap-2 px-2 mb-8">
         <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center text-accent-foreground font-bold text-sm">
           D

@@ -14,6 +14,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import Sidebar from "@/components/sidebar";
+import MobileTopBar from "@/components/mobile-top-bar";
 import StatCard from "@/components/stat-card";
 import type { Lead, LeadNote, LeadActivity, Profile, LeadStatus, Paginated } from "@/lib/types";
 
@@ -128,8 +129,9 @@ export default function BoardClient({
   }
 
   return (
-    <div className="min-h-screen p-5 flex gap-5 max-w-[1400px] mx-auto">
+    <div className="min-h-screen p-4 sm:p-5 flex flex-col lg:flex-row gap-5 max-w-[1400px] mx-auto">
       <Sidebar currentProfile={currentProfile} />
+      <MobileTopBar currentProfile={currentProfile} />
 
       <main className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-6">
@@ -151,7 +153,7 @@ export default function BoardClient({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <StatCard label="Total leads" value={stats.total} icon={UsersFour} />
           <StatCard label="Won" value={stats.won} icon={Trophy} />
           <StatCard label="Unassigned" value={stats.unassigned} icon={Sparkle} />
@@ -230,7 +232,7 @@ export default function BoardClient({
           <p className="text-sm text-muted-foreground py-8 text-center">No leads found.</p>
         )}
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {leads.map((lead) => (
             <div
               key={lead.id}
