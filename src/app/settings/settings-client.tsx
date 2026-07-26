@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ShieldCheck, Trash, Globe, Plus } from "@phosphor-icons/react";
+import { ShieldCheck, Trash, Globe, Plus, Bell, Check } from "@phosphor-icons/react";
 import Sidebar from "@/components/sidebar";
 import MobileTopBar from "@/components/mobile-top-bar";
 import { createClient } from "@/lib/supabase/client";
@@ -38,6 +38,33 @@ export default function SettingsClient({ currentProfile }: { currentProfile: Pro
   const [allowlist, setAllowlist] = useState<AllowlistEntry[]>([]);
   const [newIp, setNewIp] = useState("");
   const [newNote, setNewNote] = useState("");
+  const [alertEmail, setAlertEmail] = useState("");
+  const [savedAlertEmail, setSavedAlertEmail] = useState(false);
+
+  const loadSettings = useCallback(async () => {
+    if (currentProfile.role !== "admin") return;
+    const res = await fetch("/api/settings");
+    if (res.ok) {
+      const data = await res.json();
+      setAlertEmail(data.alert_email ?? "");
+    }
+  }, [currentProfile.role]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  async function saveAlertEmail() {
+    const res = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alert_email: alertEmail.trim() }),
+    });
+    if (res.ok) {
+      setSavedAlertEmail(true);
+      setTimeout(() => setSavedAlertEmail(false), 2000);
+    }
+  }
 
   const loadAllowlist = useCallback(async () => {
     if (currentProfile.role !== "admin") return;
@@ -217,6 +244,33 @@ export default function SettingsClient({ currentProfile }: { currentProfile: Pro
             </div>
           )}
         </div>
+
+        {currentProfile.role === "admin" && (
+          <div className="bg-card rounded-2xl border border-border p-5 mt-5">
+            <h2 className="text-sm font-bold mb-1 flex items-center gap-2">
+              <Bell size={16} /> Lead alert email
+            </h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              Where new-lead notifications are sent. Falls back to the deployment default when
+              unset.
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={alertEmail}
+                onChange={(e) => setAlertEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="flex-1 border border-border rounded-xl px-3 py-2 text-sm bg-card-muted focus:outline-none"
+              />
+              <button
+                onClick={saveAlertEmail}
+                className="bg-accent text-accent-foreground text-sm font-medium px-4 py-2 rounded-xl flex items-center gap-1.5"
+              >
+                {savedAlertEmail ? <Check size={14} /> : null}
+                {savedAlertEmail ? "Saved" : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {currentProfile.role === "admin" && (
           <div className="bg-card rounded-2xl border border-border p-5 mt-5">

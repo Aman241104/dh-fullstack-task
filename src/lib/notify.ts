@@ -4,7 +4,20 @@
 // Resend outage logs a warning and returns false, never throws — a lead
 // capture must never fail because a notification email couldn't send.
 
+import { createClient } from "@/lib/supabase/server";
+
 const RESEND_URL = "https://api.resend.com/emails";
+
+// Admin-configurable via Settings (app_settings.alert_email, read through
+// the get_alert_email() security definer function so this works from the
+// anon-role public capture path too). Falls back to RESEND_NOTIFY_EMAIL
+// when no admin has set one yet, so existing deployments keep working
+// unchanged.
+async function resolveAlertEmail(): Promise<string | undefined> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("get_alert_email");
+  return data || process.env.RESEND_NOTIFY_EMAIL;
+}
 
 export async function notifyNewLead(lead: {
   name: string;
@@ -14,9 +27,9 @@ export async function notifyNewLead(lead: {
   possibleDuplicate: boolean;
 }): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.RESEND_NOTIFY_EMAIL;
+  const to = await resolveAlertEmail();
   if (!apiKey || !to) {
-    console.warn("[notify] RESEND_API_KEY or RESEND_NOTIFY_EMAIL not set — skipping email");
+    console.warn("[notify] RESEND_API_KEY not set or no alert email configured — skipping email");
     return false;
   }
 
