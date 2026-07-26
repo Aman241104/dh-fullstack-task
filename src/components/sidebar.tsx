@@ -1,12 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { SquaresFour, SignOut } from "@phosphor-icons/react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { SquaresFour, SignOut, Gear } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 
 export default function Sidebar({ currentProfile }: { currentProfile: Profile }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   async function signOut() {
     const supabase = createClient();
@@ -28,10 +30,24 @@ export default function Sidebar({ currentProfile }: { currentProfile: Profile })
         General
       </p>
       <nav className="flex flex-col gap-1 mb-6">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-accent-soft text-accent font-medium text-sm">
-          <SquaresFour size={18} weight="fill" />
+        <Link
+          href="/board"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm ${
+            pathname === "/board" ? "bg-accent-soft text-accent" : "text-muted-foreground hover:bg-card-muted hover:text-foreground"
+          }`}
+        >
+          <SquaresFour size={18} weight={pathname === "/board" ? "fill" : "regular"} />
           Leads
-        </div>
+        </Link>
+        <Link
+          href="/settings"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm ${
+            pathname === "/settings" ? "bg-accent-soft text-accent" : "text-muted-foreground hover:bg-card-muted hover:text-foreground"
+          }`}
+        >
+          <Gear size={18} weight={pathname === "/settings" ? "fill" : "regular"} />
+          Settings
+        </Link>
       </nav>
 
       <div className="mt-auto pt-4 border-t border-border">

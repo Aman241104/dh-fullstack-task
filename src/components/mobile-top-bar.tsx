@@ -1,13 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { SignOut } from "@phosphor-icons/react";
+import Link from "next/link";
+import { SignOut, Gear } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 
 // Shown only below the `lg` breakpoint, in place of the full Sidebar (which
-// is `hidden` there) — this app has exactly one real destination (Leads), so
-// there's nothing to put behind a hamburger menu. Just identity + sign out.
+// is `hidden` there).
 export default function MobileTopBar({ currentProfile }: { currentProfile: Profile }) {
   const router = useRouter();
 
@@ -26,13 +26,18 @@ export default function MobileTopBar({ currentProfile }: { currentProfile: Profi
         </div>
         <span className="font-bold tracking-tight">Docket.</span>
       </div>
-      <button
-        onClick={signOut}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground"
-      >
-        <SignOut size={16} />
-        {currentProfile.name.split(" ")[0]}
-      </button>
+      <div className="flex items-center gap-3">
+        <Link href="/settings" className="text-muted-foreground">
+          <Gear size={18} />
+        </Link>
+        <button
+          onClick={signOut}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+        >
+          <SignOut size={16} />
+          {currentProfile.name.split(" ")[0]}
+        </button>
+      </div>
     </div>
   );
 }

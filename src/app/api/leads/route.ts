@@ -1,26 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { listLeads, createPublicLead, getCurrentProfile } from "@/lib/leads";
 import { captureLeadSchema, listLeadsQuerySchema } from "@/lib/schemas";
 
-// Very small in-memory rate limit for the public capture endpoint — keyed by
-// IP, fixed 60s window, 5 submissions max. Honest limitation, stated here
-// rather than glossed over: this resets per serverless instance/cold start
-// and isn't shared across instances, so it's a real but partial defense, not
-// a guarantee. A production version would use a shared store (Upstash Redis)
-// or a DB-backed counter — out of scope for this build's time budget. The
-// honeypot field (schemas.ts) is the primary defense; this is a second layer
-// against a burst from one client hitting a warm instance.
-const submissionLog = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 5;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const recent = (submissionLog.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  recent.push(now);
-  submissionLog.set(ip, recent);
-  return recent.length > RATE_LIMIT_MAX;
+// DB-backed rate limit via the check_rate_limit() security definer function
+// (see the 20260726000003 migration) — replaces the earlier in-memory
+// version, which was an honestly-disclosed limitation (reset per serverless
+// instance/cold start, not shared across instances). This is a real, shared
+// counter regardless of which instance handles the request. The IP is
+// hashed before use as the lookup key — rate_limit_events never stores a
+// raw, reversible IP address.
+async function isRateLimited(ip: string): Promise<boolean> {
+  const key = createHash("sha256").update(ip).digest("hex");
+  const supabase = await createClient();
+  const { data: allowed, error } = await supabase.rpc("check_rate_limit", {
+    p_key: key,
+    p_window_seconds: 60,
+    p_max: 5,
+  });
+  if (error) {
+    // Fail open on an infra hiccup — a broken rate limiter should not take
+    // down the public capture form. The honeypot field is the primary
+    // defense either way.
+    console.warn("[rate-limit] check_rate_limit failed:", error.message);
+    return false;
+  }
+  return !allowed;
 }
 
 // GET /api/leads?page=&pageSize=&status=&assigned_to=&search=
@@ -58,7 +64,7 @@ export async function GET(req: NextRequest) {
 // it, not a substitute for it.
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(ip)) {
+  if (await isRateLimited(ip)) {
     return NextResponse.json({ error: "Too many submissions, try again shortly" }, { status: 429 });
   }
 

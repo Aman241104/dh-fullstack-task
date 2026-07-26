@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { scoreLead } from "@/lib/ai/scoring";
+import { notifyNewLead } from "@/lib/notify";
 import type { Lead, LeadNote, LeadActivity, Profile, LeadStatus, Paginated } from "@/lib/types";
 
 // ─── Current user ───────────────────────────────────────────────────────────
@@ -84,14 +86,43 @@ export async function createPublicLead(input: {
   message?: string;
 }): Promise<void> {
   const supabase = await createClient();
+
+  // Both of these run through security definer functions (see the
+  // 20260726000003 migration) since anon has no SELECT grant on `leads` at
+  // all - there's no way to check "does this exist already" with a direct
+  // query the anon role could run.
+  const { data: isDuplicate } = await supabase.rpc("check_duplicate_lead", {
+    p_email: input.email,
+    p_days: 7,
+  });
+
+  const { score, reason } = await scoreLead({
+    email: input.email,
+    phone: input.phone,
+    company: input.company,
+    message: input.message,
+  });
+
   const { error } = await supabase.from("leads").insert({
     name: input.name,
     email: input.email,
     phone: input.phone || null,
     company: input.company || null,
     source: "public_form",
+    possible_duplicate: !!isDuplicate,
+    score,
+    score_reason: reason,
   });
   if (error) throw error;
+
+  // Best-effort - a failed notification never fails the capture itself.
+  await notifyNewLead({
+    name: input.name,
+    email: input.email,
+    company: input.company,
+    score,
+    possibleDuplicate: !!isDuplicate,
+  });
 }
 
 export async function updateLeadStatus(
@@ -174,6 +205,22 @@ export async function listActivity(leadId: string): Promise<LeadActivity[]> {
     .select("*")
     .eq("lead_id", leadId)
     .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Team-wide activity feed - no leadId filter, so RLS itself decides what
+// comes back: an admin's session gets every event, a member's session gets
+// only events on leads assigned to them (lead_activity_member_own_lead).
+// No extra role check needed here - the same query run through two
+// different sessions naturally returns two different result sets.
+export async function listAllActivity(limit = 50): Promise<LeadActivity[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lead_activity")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
   if (error) throw error;
   return data ?? [];
 }

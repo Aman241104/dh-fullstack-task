@@ -19,6 +19,7 @@ export interface Lead {
   assigned_to: string | null;
   score: number | null;
   score_reason: string | null;
+  possible_duplicate: boolean;
   created_at: string;
 }
 

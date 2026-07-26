@@ -12,8 +12,12 @@ export const captureLeadSchema = z.object({
   message: z.string().trim().max(2000).optional().or(z.literal("")),
   // Honeypot: a real browser never fills this in (hidden via CSS, not
   // `type="hidden"`, so a bot's autofill/heuristics are more likely to catch
-  // it). Any non-empty value here means it wasn't a human.
-  website: z.string().max(0).optional().or(z.literal("")),
+  // it). Any non-empty value here means it wasn't a human. Deliberately
+  // unconstrained (not max(0)) — the route handler is what decides what to
+  // do with a non-empty value, and needs it to actually reach that check
+  // instead of being rejected here as a 400 (which would leak to a bot that
+  // it got caught, defeating the "pretend success" response).
+  website: z.string().max(200).optional().or(z.literal("")),
 });
 
 export type CaptureLeadInput = z.infer<typeof captureLeadSchema>;
