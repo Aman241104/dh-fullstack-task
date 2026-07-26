@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # DB-backed integration tests in tests/*.test.ts skip themselves via
+      # describe.skipIf(!hasCreds) when TEST_ADMIN_EMAIL etc. aren't set, so
+      # this runs safely without any repo secrets configured — it still
+      # exercises every pure-logic test (scoring, schema validation) on
+      # every push. Add the TEST_* and NEXT_PUBLIC_SUPABASE_* secrets in the
+      # repo's Settings > Secrets to also run the live-DB suite here.
+      - run: npx vitest run
+
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

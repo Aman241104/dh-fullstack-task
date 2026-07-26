@@ -53,6 +53,15 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/api/ip-allowlist"));
 
   if (isGated) {
+    // Trust boundary: this takes the FIRST hop of x-forwarded-for, which is
+    // only trustworthy because Vercel's edge network sets this header
+    // itself and a client cannot inject an earlier hop in front of it. This
+    // gate is NOT safe to deploy behind an arbitrary reverse proxy that
+    // forwards a client-controlled x-forwarded-for unmodified - that would
+    // let any client spoof its way past the allowlist by just setting the
+    // header itself. If this project is ever deployed somewhere other than
+    // Vercel, verify the platform's proxy strips/overwrites incoming
+    // x-forwarded-for before trusting this again.
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     const { data: allowed } = await supabase.rpc("is_ip_allowed", { p_ip: ip });
     if (allowed === false) {

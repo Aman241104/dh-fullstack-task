@@ -1,7 +1,10 @@
 # Refactor commentary — before.ts → after/
 
-Real, run, verified: `npx vitest run task-b/refactor/after/lead-routing.service.test.ts` — 7 passing
-tests, ~176ms, no server or database required to run them.
+Real, run, verified: `cd task-b && npm install && npx tsc --noEmit && npx vitest run` — 7 passing
+tests, ~150ms, no server or database required to run them, and the whole folder (including
+`route.ts` and `leads.repository.ts`, which the test file doesn't touch) typechecks cleanly against
+real `express`/`pg`/`zod` type declarations, not just against the one file the tests happen to
+import.
 
 ## What was actually wrong with `before.ts`
 

@@ -570,13 +570,14 @@ function LeadDetail({
   async function sendChat() {
     const text = chatInput.trim();
     if (!text || chatSending) return;
+    const history = chat;
     setChat((c) => [...c, { role: "user", content: text }]);
     setChatInput("");
     setChatSending(true);
     const res = await fetch(`/api/leads/${leadId}/copilot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ message: text, history }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -638,9 +639,20 @@ function LeadDetail({
             </p>
           )}
           {lead?.possible_duplicate && (
-            <p className="text-amber-600 text-xs font-medium bg-amber-50 rounded-md px-2 py-1 w-fit">
-              Possible duplicate of an existing lead
-            </p>
+            <div className="flex items-center justify-between bg-amber-50 rounded-md px-2 py-1.5 gap-2">
+              <p className="text-amber-600 text-xs font-medium">
+                Possible duplicate of an existing lead
+              </p>
+              <button
+                onClick={async () => {
+                  const res = await fetch(`/api/leads/${leadId}/dismiss-duplicate`, { method: "POST" });
+                  if (res.ok) load();
+                }}
+                className="text-amber-700 text-xs font-medium underline whitespace-nowrap"
+              >
+                Not a duplicate
+              </button>
+            </div>
           )}
         </div>
 

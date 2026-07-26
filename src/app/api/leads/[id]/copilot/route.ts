@@ -6,6 +6,15 @@ import { z } from "zod";
 
 const copilotMessageSchema = z.object({
   message: z.string().trim().min(1).max(2000),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().max(4000),
+      }),
+    )
+    .max(20)
+    .optional(),
 });
 
 // POST /api/leads/:id/copilot — authenticated only. getLead() inside
@@ -30,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   try {
-    const result = await runCopilotTurn(id, profile.id, parsed.data.message);
+    const result = await runCopilotTurn(id, profile.id, parsed.data.message, parsed.data.history ?? []);
     return NextResponse.json(result, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

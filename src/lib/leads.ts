@@ -93,6 +93,7 @@ export async function createPublicLead(input: {
   // query the anon role could run.
   const { data: isDuplicate } = await supabase.rpc("check_duplicate_lead", {
     p_email: input.email,
+    p_phone: input.phone || null,
     p_days: 7,
   });
 
@@ -162,6 +163,24 @@ export async function assignLead(
     .single();
   if (error) throw error;
   await logActivity(id, actorId, "assigned", { assigned_to: assignedTo });
+  return data;
+}
+
+// Clears the possible_duplicate flag set at capture time. There's no real
+// "merge" here - this doesn't touch the other record it was flagged
+// against, it just tells the pipeline "I checked, this one's legitimate."
+// A real merge (combining two lead records into one) is a bigger feature
+// than a flag dismissal warrants.
+export async function dismissDuplicateFlag(id: string, actorId: string): Promise<Lead> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .update({ possible_duplicate: false })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  await logActivity(id, actorId, "duplicate_dismissed", {});
   return data;
 }
 

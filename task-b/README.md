@@ -17,7 +17,13 @@ not because it's the same codebase.
   (hardcoded secrets, string-concatenated SQL, inline business logic, no validation, no error
   handling) written for this exercise. `after/` splits it into a route handler, a pure/testable
   service, a parameterized repository, and an env-based notification module — plus a real test file
-  (`lead-routing.service.test.ts`, 7 passing tests, verified: `npx vitest run task-b/refactor/after/lead-routing.service.test.ts`).
+  (`lead-routing.service.test.ts`, 7 passing tests). This folder has its own `package.json` and
+  `tsconfig.json` (deliberately separate from the root app — `express`/`pg` have no reason to be
+  dependencies of the Task A Next.js app) so the whole thing is independently installable and
+  typecheckable, not just "code that looks right":
+  ```
+  cd task-b && npm install && npx tsc --noEmit && npx vitest run
+  ```
   Commentary in [`refactor/NOTES.md`](./refactor/NOTES.md), including a specific boundary-value bug
   the new tests catch that the original code was silently exposed to.
 - **[`STANDARDS.md`](./STANDARDS.md)** — the standards themselves, plus how to actually get a team

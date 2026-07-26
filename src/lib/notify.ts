@@ -33,6 +33,24 @@ export async function notifyNewLead(lead: {
     return false;
   }
 
+  // Throttled via the same check_rate_limit() used for the public form -
+  // caps notifications to one per 30s per recipient regardless of how many
+  // leads land in that window, so a burst of submissions can't spam the
+  // admin's inbox one email per lead. This drops the notification for
+  // leads that land inside an already-throttled window rather than queuing
+  // or batching their content into a digest - a real digest needs a queue
+  // (cron + outbox table), which is a bigger feature than this warrants.
+  const supabase = await createClient();
+  const { data: allowed } = await supabase.rpc("check_rate_limit", {
+    p_key: `notify:${to}`,
+    p_window_seconds: 30,
+    p_max: 1,
+  });
+  if (allowed === false) {
+    console.warn("[notify] throttled — a notification already went out in the last 30s");
+    return false;
+  }
+
   const subjectFlags = lead.possibleDuplicate ? " [possible duplicate]" : "";
 
   try {

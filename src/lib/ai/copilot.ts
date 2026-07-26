@@ -109,10 +109,16 @@ async function summarize(
   }
 }
 
+export interface CopilotHistoryTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function runCopilotTurn(
   leadId: string,
   actorId: string,
   userMessage: string,
+  history: CopilotHistoryTurn[] = [],
 ): Promise<CopilotResult> {
   if (!isAiConfigured()) {
     return {
@@ -134,13 +140,22 @@ Team roster (name: profile id, use the id for assign_lead): ${roster || "none"}.
 
 Call a tool when the user asks you to take an action. Otherwise reply conversationally and briefly.`;
 
-  const message = await nvidiaChat(
-    [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage },
-    ],
-    { tools: COPILOT_TOOLS as unknown as unknown[], maxTokens: 300 },
-  );
+  // Prior turns (capped to the last 10) give the model conversational
+  // memory - "no, assign it to the other one" only makes sense with the
+  // preceding turn in context. Only role+content is replayed, not raw tool
+  // calls: each assistant turn's tool results were already flattened into
+  // plain text (see the `reply` built below), which is enough context
+  // without re-sending tool-call payloads the model doesn't need to re-see.
+  const messages = [
+    { role: "system" as const, content: systemPrompt },
+    ...history.slice(-10).map((h) => ({ role: h.role, content: h.content })),
+    { role: "user" as const, content: userMessage },
+  ];
+
+  const message = await nvidiaChat(messages, {
+    tools: COPILOT_TOOLS as unknown as unknown[],
+    maxTokens: 300,
+  });
 
   if (!message.tool_calls || message.tool_calls.length === 0) {
     return { reply: message.content ?? "…", actions: [] };
