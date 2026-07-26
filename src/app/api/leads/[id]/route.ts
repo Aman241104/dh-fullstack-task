@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getLead, updateLeadStatus, getCurrentProfile } from "@/lib/leads";
+import { getLead, updateLeadStatus } from "@/lib/leads";
 import { updateStatusSchema } from "@/lib/schemas";
 
 // GET /api/leads/:id

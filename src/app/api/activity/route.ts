@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { listAllActivity } from "@/lib/leads";
 
@@ -6,7 +6,7 @@ import { listAllActivity } from "@/lib/leads";
 // scope per-session (see listAllActivity's comment) - no admin-only gate
 // needed here, a member calling this just gets a smaller, correctly
 // scoped result set instead of a 403.
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const supabase = await createClient();
   const {
     data: { user },

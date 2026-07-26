@@ -19,6 +19,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run lint
+
       # DB-backed integration tests in tests/*.test.ts skip themselves via
       # describe.skipIf(!hasCreds) when TEST_ADMIN_EMAIL etc. aren't set, so
       # this runs safely without any repo secrets configured — it still
@@ -31,3 +33,24 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+  # Task B's refactor sample is deliberately a separate mini-project (its
+  # own package.json/tsconfig.json — see task-b/README.md) so it's checked
+  # independently rather than folded into the app's own install/build.
+  task-b:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: task-b
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: task-b/package-lock.json
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run

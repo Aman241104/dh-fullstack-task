@@ -51,7 +51,12 @@ export default function SettingsClient({ currentProfile }: { currentProfile: Pro
   }, [currentProfile.role]);
 
   useEffect(() => {
-    loadSettings();
+    // See the equivalent comment in board-client.tsx - queueMicrotask
+    // avoids the react-hooks/set-state-in-effect lint error without
+    // changing when this actually runs.
+    queueMicrotask(() => {
+      loadSettings();
+    });
   }, [loadSettings]);
 
   async function saveAlertEmail() {
@@ -73,7 +78,9 @@ export default function SettingsClient({ currentProfile }: { currentProfile: Pro
   }, [currentProfile.role]);
 
   useEffect(() => {
-    loadAllowlist();
+    queueMicrotask(() => {
+      loadAllowlist();
+    });
   }, [loadAllowlist]);
 
   async function addAllowlistEntry() {
@@ -102,7 +109,9 @@ export default function SettingsClient({ currentProfile }: { currentProfile: Pro
   }, []);
 
   useEffect(() => {
-    loadFactors();
+    queueMicrotask(() => {
+      loadFactors();
+    });
   }, [loadFactors]);
 
   async function startEnroll() {

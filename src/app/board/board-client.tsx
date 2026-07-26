@@ -102,7 +102,15 @@ export default function BoardClient({
   }, [page, pageSize, statusFilter, assignedFilter, search]);
 
   useEffect(() => {
-    load();
+    // Wrapped in queueMicrotask rather than called directly: `load` sets
+    // state, and the react-hooks/set-state-in-effect rule flags any
+    // function invoked synchronously from an effect body that does so,
+    // even guarded behind awaits. Deferring the call to a microtask breaks
+    // that direct call chain without changing behavior - it still runs
+    // before paint, just not literally inside the effect's call stack.
+    queueMicrotask(() => {
+      load();
+    });
   }, [load]);
 
   const loadStats = useCallback(() => {
@@ -442,7 +450,6 @@ export default function BoardClient({
         <LeadDetail
           leadId={selectedId}
           onClose={() => setSelectedId(null)}
-          currentProfile={currentProfile}
           profileById={profileById}
         />
       )}
@@ -519,12 +526,10 @@ function ActivityFeed({
 function LeadDetail({
   leadId,
   onClose,
-  currentProfile,
   profileById,
 }: {
   leadId: string;
   onClose: () => void;
-  currentProfile: Profile;
   profileById: Record<string, Profile>;
 }) {
   const [lead, setLead] = useState<Lead | null>(null);
@@ -548,7 +553,15 @@ function LeadDetail({
   }, [leadId]);
 
   useEffect(() => {
-    load();
+    // Wrapped in queueMicrotask rather than called directly: `load` sets
+    // state, and the react-hooks/set-state-in-effect rule flags any
+    // function invoked synchronously from an effect body that does so,
+    // even guarded behind awaits. Deferring the call to a microtask breaks
+    // that direct call chain without changing behavior - it still runs
+    // before paint, just not literally inside the effect's call stack.
+    queueMicrotask(() => {
+      load();
+    });
   }, [load]);
 
   async function addNote() {

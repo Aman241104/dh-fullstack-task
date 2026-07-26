@@ -21,7 +21,7 @@ describe.skipIf(!hasCreds)("Core flows — real project, real sessions", () => {
     anon = createClient(url!, anonKey!);
 
     adminClient = createClient(url!, anonKey!);
-    const { data: adminAuth, error: adminErr } = await adminClient.auth.signInWithPassword({
+    const { error: adminErr } = await adminClient.auth.signInWithPassword({
       email: adminEmail!,
       password: adminPassword!,
     });

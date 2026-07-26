@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { createClient } from "@/lib/supabase/server";
-import { listLeads, createPublicLead, getCurrentProfile } from "@/lib/leads";
+import { listLeads, createPublicLead } from "@/lib/leads";
 import { captureLeadSchema, listLeadsQuerySchema } from "@/lib/schemas";
 
 // DB-backed rate limit via the check_rate_limit() security definer function

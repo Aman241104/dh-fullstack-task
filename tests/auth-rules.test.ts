@@ -114,7 +114,7 @@ describe.skipIf(!hasCreds)("Auth rules — real project, real sessions", () => {
   });
 
   it("member CANNOT reassign a lead, even one assigned to them", async () => {
-    const { error } = await memberClient
+    await memberClient
       .from("leads")
       .update({ assigned_to: adminId })
       .eq("id", memberOwnedLeadId);

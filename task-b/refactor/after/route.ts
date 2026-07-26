@@ -38,7 +38,7 @@ router.post("/leads/:id/route", async (req, res) => {
     await notifyRepAssigned(parsed.data.company, tier, rep.name);
 
     res.json({ assignedTo: rep.name, priority, tier });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to route lead" });
   }
 });
